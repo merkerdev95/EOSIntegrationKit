@@ -99,7 +99,27 @@ class ONLINESUBSYSTEMEIK_API UEIK_Ecom_Checkout : public UBlueprintAsyncActionBa
 
 public:
 
-	//Initiates the purchase flow for a set of offers. The callback is triggered after the purchase flow. On success, the set of entitlements that were unlocked will be cached. On success, a Transaction ID will be returned. The Transaction ID can be used to obtain an EOS_Ecom_HTransaction handle. The handle can then be used to retrieve the entitlements rewarded by the purchase.
+	/**
+	 * Initiates the purchase flow for a set of offers. The callback is triggered after the purchase flow.
+	 * On success, the set of entitlements that were unlocked will be cached.
+	 * On success, a Transaction ID will be returned. The Transaction ID can be used to obtain an EOS_Ecom_HTransaction handle.
+	 * The handle can then be used to retrieve the entitlements rewarded by the purchase.
+	 *
+	 * Mobile Support (iOS and Android) - New in EOS SDK 1.17:
+	 * - The Ecom checkout service now supports mobile platforms for Epic Games Store partners in the Mobile Early Adopter program
+	 * - Opens an embedded browser displaying a mobile-optimized Epic Games Store IAP checkout UI
+	 * - On iOS 16+, screen orientation handling may require engine-specific configuration
+	 * - On Android, includes a floating action button that players can move with a long-press gesture
+	 *
+	 * Important Notes:
+	 * - If the callback returns EOS_Ecom_PurchaseProcessing, you must query entitlements to verify the purchase
+	 * - The checkout may return EOS_InvalidRequest for durable items - use EOS_Ecom_QueryOwnership for durables instead
+	 *
+	 * @param CheckoutOptions Structure containing the local user ID and offers to purchase
+	 * @return Async action object with OnCallback delegate
+	 *
+	 * @see https://dev.epicgames.com/docs/epic-games-store/tech-features-config/ecom/ecom-overview
+	 */
 	UFUNCTION(BlueprintCallable, Category = "EOS Integration Kit | SDK Functions | Ecom Interface", DisplayName = "EOS_Ecom_Checkout")
 	static UEIK_Ecom_Checkout* EIK_Ecom_Checkout(FEIK_Ecom_CheckoutOptions CheckoutOptions);
 	

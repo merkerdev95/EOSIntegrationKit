@@ -88,7 +88,24 @@ class ONLINESUBSYSTEMEIK_API UEIK_Ecom_QueryOwnership : public UBlueprintAsyncAc
 
 public:
 
-	//Query the ownership status for a given list of catalog item IDs defined with Epic Online Services. This data will be cached for a limited time and retrieved again from the backend when necessary Depending on the number of catalog item ids passed, the SDK splits the query into smaller batch requests to the backend and aggregates the result. Note: If one of the request batches fails, no data is cached and the entire query is marked as failed.
+	/**
+	 * Query the ownership status for a given list of catalog item IDs defined with Epic Online Services.
+	 * This data will be cached for a limited time and retrieved again from the backend when necessary.
+	 * Depending on the number of catalog item ids passed, the SDK splits the query into smaller batch requests to the backend and aggregates the result.
+	 *
+	 * Important - Durable Items (Updated in EOS SDK 1.17):
+	 * - Use this function to query durable item ownership in the Epic Games Store
+	 * - EOS_Ecom_QueryEntitlements now returns EOS_InvalidRequest for durable items
+	 * - Use QueryEntitlements only for consumable purchases
+	 * - This ensures proper server-side validation with Ecom Web API v4
+	 *
+	 * Note: If one of the request batches fails, no data is cached and the entire query is marked as failed.
+	 *
+	 * @param QueryOwnershipOptions Structure containing the local user ID and catalog item IDs to check
+	 * @return Async action object with OnCallback delegate containing ownership status
+	 *
+	 * @see https://dev.epicgames.com/docs/epic-games-store/tech-features-config/ecom/ecom-overview
+	 */
 	UFUNCTION(BlueprintCallable, Category = "EOS Integration Kit | SDK Functions | Ecom Interface", DisplayName = "EOS_Ecom_QueryOwnership")
 	static UEIK_Ecom_QueryOwnership* EIK_Ecom_QueryOwnership(FEIK_Ecom_QueryOwnershipOptions QueryOwnershipOptions);
 
