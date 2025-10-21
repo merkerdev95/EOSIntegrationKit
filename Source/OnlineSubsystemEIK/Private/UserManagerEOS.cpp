@@ -1762,15 +1762,8 @@ void FUserManagerEOS::LaunchDevTool()
 		return;
 	}
 	FString PluginRoot = EOSPlugin->GetBaseDir();
-	auto MainModulePath = FPaths::Combine(*PluginRoot, TEXT("Source/ThirdParty/EIKSDK/Tools/EOS_DevAuthTool-win32-x64-1.2.1"));
+	auto MainModulePath = FPaths::Combine(*PluginRoot, TEXT("Source/ThirdParty/EIKSDK/Tools/EOS_DevAuthTool-win32-x64-1.2.0"));
 	FString DevToolPath = FPaths::Combine(*MainModulePath, TEXT("EOS_DevAuthTool.exe"));
-
-	// Fallback to standalone exe if directory version doesn't exist
-	if (!FPaths::FileExists(DevToolPath))
-	{
-		DevToolPath = FPaths::Combine(*PluginRoot, TEXT("Source/ThirdParty/EIKSDK/Tools/EOS_DevAuthTool.exe"));
-	}
-
 	FString DevToolArgs = TEXT("");
 	FPlatformProcess::CreateProc(*DevToolPath, *DevToolArgs, true, false, false, nullptr, 0, nullptr, nullptr);
 }

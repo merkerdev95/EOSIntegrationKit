@@ -187,13 +187,6 @@ void FEIKEditorModule::OpenDevTool()
 #if PLATFORM_WINDOWS
     FString MainModulePath = FPaths::Combine(*PluginRoot, TEXT("Source/ThirdParty/EIKSDK/Tools/EOS_DevAuthTool-win32-x64-1.2.1"));
     DevToolPath = FPaths::Combine(*MainModulePath, TEXT("EOS_DevAuthTool.exe"));
-
-    // Fallback to standalone exe if directory version doesn't exist
-    if (!FPaths::FileExists(DevToolPath))
-    {
-        DevToolPath = FPaths::Combine(*PluginRoot, TEXT("Source/ThirdParty/EIKSDK/Tools/EOS_DevAuthTool.exe"));
-    }
-
     if (!FPaths::FileExists(DevToolPath))
     {
         UE_LOG(LogEikEditor, Error, TEXT("DevTool not found at %s"), *DevToolPath);
