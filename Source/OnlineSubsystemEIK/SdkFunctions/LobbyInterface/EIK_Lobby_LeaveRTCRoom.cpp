@@ -2,6 +2,7 @@
 
 #include "EIK_Lobby_LeaveRTCRoom.h"
 #include "Async/Async.h"
+#include "OnlineSessionEOS.h" 
 #include "OnlineSubsystemEOS.h"
 #include "OnlineSubsystemEIK/SdkFunctions/ConnectInterface/EIK_ConnectSubsystem.h"
 
