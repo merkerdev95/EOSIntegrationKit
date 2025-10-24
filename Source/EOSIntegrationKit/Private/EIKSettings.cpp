@@ -522,17 +522,25 @@ void UEIKSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 					bConfigChanged = true;
 				}
 
-				// Update [/Script/Engine.GameEngine] section
+				// Update NetDriverDefinitions section (version-specific)
+				// All versions use [/Script/Engine.GameEngine] section
 				if (!EngineIniText.Contains(TEXT("[/Script/Engine.GameEngine]")))
 				{
 					EngineIniText += TEXT("\n[/Script/Engine.GameEngine]\n");
 
-					// Update NetDriverDefinitions in [/Script/Engine.GameEngine] section
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+					// UE 5.6+ requires /Script/ prefix for DriverClassName paths
+					FString NetDriverDefinitions = FString::Printf(
+						TEXT("!NetDriverDefinitions=ClearArray\n+NetDriverDefinitions=(DefName=\"GameNetDriver\",DriverClassName=\"/Script/OnlineSubsystemEIK.NetDriverEIK\",DriverClassNameFallback=\"/Script/OnlineSubsystemUtils.IpNetDriver\")\n+NetDriverDefinitions=(DefName=\"BeaconNetDriver\",DriverClassName=\"/Script/OnlineSubsystemEIK.NetDriverEIK\",DriverClassNameFallback=\"/Script/OnlineSubsystemUtils.IpNetDriver\")\n")
+					);
+#else
+					// UE 5.5 and below use old class path format without /Script/ prefix
 					FString NetDriverDefinitions = FString::Printf(
 						TEXT("!NetDriverDefinitions=ClearArray\n+NetDriverDefinitions=(DefName=\"GameNetDriver\",DriverClassName=\"OnlineSubsystemEIK.NetDriverEIK\",DriverClassNameFallback=\"OnlineSubsystemUtils.IpNetDriver\")\n")
 					);
+#endif
 					EngineIniText += NetDriverDefinitions;
-            
+
 					bConfigChanged = true;
 				}
 
