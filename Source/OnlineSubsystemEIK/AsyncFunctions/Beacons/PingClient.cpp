@@ -4,6 +4,7 @@
 
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "Online/OnlineSessionNames.h"
 
 DEFINE_LOG_CATEGORY(LogPingClient)
 
@@ -65,7 +66,7 @@ bool APingClient::ConnectToHost(FString Address, int32 Port, const bool bPortOve
 		}
 		else
 		{
-			url.Port = 8888;
+			url.Port = DEFAULT_BEACON_PORT;  // Use UE engine default (15000) instead of hardcoded 8888
 		}
 	}
 	UE_LOG(LogPingClient, Log, TEXT("Connecting to %s:%d"), *url.Host, url.Port);
@@ -80,12 +81,25 @@ bool APingClient::ConnectToSession(FBlueprintSessionResult SearchResult, FEIK_Pi
 		if(IOnlineSessionPtr Sessions = OnlineSub->GetSessionInterface())
 		{
 			FString Address;
-			Sessions->GetResolvedConnectString(SearchResult.OnlineResult, EName::BeaconPort, Address);
-			UE_LOG(LogPingClient, Log, TEXT("Resolved Address: %s"), *Address);
+			if (!Sessions->GetResolvedConnectString(SearchResult.OnlineResult, EName::BeaconPort, Address))
+			{
+				UE_LOG(LogPingClient, Error, TEXT("Failed to resolve beacon address from session. GetResolvedConnectString returned false."));
+				OnPingComplete.ExecuteIfBound(0, false);
+				return false;
+			}
+
+			if (Address.IsEmpty())
+			{
+				UE_LOG(LogPingClient, Error, TEXT("Resolved beacon address is empty. Ensure the session has SETTING_BEACONPORT configured or DefaultEngine.ini has [/Script/OnlineSubsystemUtils.OnlineBeaconHost] ListenPort set."));
+				OnPingComplete.ExecuteIfBound(0, false);
+				return false;
+			}
+
+			UE_LOG(LogPingClient, Log, TEXT("Resolved Beacon Address: %s"), *Address);
 			return ConnectToHost(Address, 0, false, Ref);
 		}
 	}
-	UE_LOG(LogPingClient, Log, TEXT("Failed to connect to session"));
+	UE_LOG(LogPingClient, Error, TEXT("Failed to get session interface for beacon connection"));
 	OnPingComplete.ExecuteIfBound(0, false);
 	return false;
 }
