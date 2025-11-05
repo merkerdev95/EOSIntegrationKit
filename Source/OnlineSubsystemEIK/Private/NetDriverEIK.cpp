@@ -2,9 +2,9 @@
 
 #include "NetDriverEIK.h"
 
-#if ENGINE_MAJOR_VERSION >= 5
+//#if ENGINE_MAJOR_VERSION >= 5
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetDriverEIK)
-#endif
+//#endif
 
 UNetDriverEIK::UNetDriverEIK(const FObjectInitializer& ObjectInitializer)
 	: UNetDriverEIKBase(ObjectInitializer)

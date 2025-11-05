@@ -166,64 +166,41 @@ public class EIKSDK : ModuleRules
 		{
 			PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
 			AdditionalPropertiesForReceipt.Add("IOSPlugin", Path.Combine(SDKBaseDir, "LibEIK_UPL.xml"));
-		} 
-		else if (Target.Platform == UnrealTargetPlatform.Android)
-		{
-#if !UE_5_3_OR_LATER
-			IAndroidToolChain ToolChain = AndroidExports.CreateToolChain(Target.ProjectFile);
-			var Architectures = ToolChain.GetAllArchitectures();
-
-			foreach (var arch in Architectures)
-			{
-				string FolderName;
-
-				// Map Unreal's architecture names to folder names
-				if (arch == "-armv7")
-				{
-					FolderName = "armeabi-v7a";
-				}
-				else if (arch == "-arm64")
-				{
-					FolderName = "arm64-v8a";
-				}
-				else if (arch == "-x86")
-				{
-					FolderName = "x86";
-				}
-				else if (arch == "-x64" || arch == "-x86_64")
-				{
-					FolderName = "x86_64";
-				}
-				else
-				{
-					Console.WriteLine("Unknown architecture: " + arch);
-					continue;
-				}
-
-				Console.WriteLine("Adding EOS SDK for architecture folder: " + FolderName);
-
-				// Add the corresponding .so file for this architecture
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, FolderName, "libEOSSDK.so"));
-				RuntimeDependencies.Add(Path.Combine(SDKBinariesDir, FolderName, "libEOSSDK.so"));
-			}
-#else
-			if (Target.Architectures.Contains(UnrealArch.Arm64))
-			{
-				Console.WriteLine("Adding EOS SDK for arm64-v8a");
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "arm64-v8a", "libEOSSDK.so"));
-			}
-			if (Target.Architectures.Contains(UnrealArch.Arm64ec))
-			{
-				Console.WriteLine("Adding EOS SDK for armeabi-v7a");
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "armeabi-v7a", "libEOSSDK.so"));
-			}
-			if (Target.Architectures.Contains(UnrealArch.X64))
-			{
-				Console.WriteLine("Adding EOS SDK for x86_64");
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "x86_64", "libEOSSDK.so"));
-			}
-#endif
-			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(SDKBaseDir, "LibEIK_APL.xml"));
 		}
-	}
+        else if (Target.Platform == UnrealTargetPlatform.Android)
+        {
+            string So(string abi) => Path.Combine(SDKBinariesDir, abi, "libEOSSDK.so");
+            void TryAdd(string abi)
+            {
+                var p = So(abi);
+                if (File.Exists(p))
+                {
+                    PublicAdditionalLibraries.Add(p);
+                    RuntimeDependencies.Add(p);
+                    Console.WriteLine("EIKSDK: Adding " + p);
+                }
+            }
+
+#if UE_5_4_OR_LATER
+    // UE5.4+: 32-bit ARM is not supported
+    if (Target.Architectures.Contains(UnrealArch.Arm64))
+        TryAdd("arm64-v8a");
+    if (Target.Architectures.Contains(UnrealArch.X64))
+        TryAdd("x86_64"); // only if you actually ship this
+
+#elif UE_5_3_OR_LATER
+    // UE5.3: same policy; avoid ArmV7 symbol entirely
+    if (Target.Architectures.Contains(UnrealArch.Arm64))
+        TryAdd("arm64-v8a");
+    if (Target.Architectures.Contains(UnrealArch.X64))
+        TryAdd("x86_64"); // optional
+
+#else
+            // UE5.2: no AndroidExports/IAndroidToolChain. Add by ABI folder, arm64 only for UE5.
+            TryAdd("arm64-v8a");
+#endif
+
+            AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(SDKBaseDir, "LibEIK_APL.xml"));
+        }
+    }
 }

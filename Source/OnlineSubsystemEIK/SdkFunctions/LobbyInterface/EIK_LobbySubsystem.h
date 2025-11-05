@@ -286,4 +286,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "EOS Integration Kit | SDK Functions | Lobby Interface", DisplayName="EOS_LobbySearch_SetTargetUserId")
 	TEnumAsByte<EEIK_Result> EIK_LobbySearch_SetTargetUserId(FEIK_HLobbySearch LobbySearchHandle, FEIK_ProductUserId Options);
+
+	// Helper Functions for simplified lobby member data management
+
+	//Set lobby member data for the local user. This is a simplified synchronous wrapper that handles the modification internally. Note: This function will block while updating the lobby.
+	UFUNCTION(BlueprintCallable, Category = "EOS Integration Kit | SDK Functions | Lobby Interface", DisplayName="Set EIK Member Data")
+	TEnumAsByte<EEIK_Result> EIK_Lobby_SetMemberData(FEIK_LobbyId LobbyId, FString Key, FString Value);
+
+	//Get lobby member data for any user in the lobby. Returns the value as a string.
+	UFUNCTION(BlueprintCallable, Category = "EOS Integration Kit | SDK Functions | Lobby Interface", DisplayName="Get EIK Member Data")
+	TEnumAsByte<EEIK_Result> EIK_Lobby_GetMemberData(FEIK_LobbyId LobbyId, FEIK_ProductUserId TargetUserId, FString Key, FString& OutValue);
 };

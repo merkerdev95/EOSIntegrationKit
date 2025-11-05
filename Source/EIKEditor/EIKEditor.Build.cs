@@ -16,6 +16,7 @@ public class EIKEditor : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
+                "DesktopPlatform",
                 "CoreUObject",
                 "Engine",
                 "Slate",

@@ -9,6 +9,7 @@
 #include "OnlineSubsystemEOS.h"
 #include "Async/Async.h"
 #include "OnlineSubsystemEIK/SdkFunctions/ConnectInterface/EIK_ConnectSubsystem.h"
+#include "UserManagerEOS.h"
 
 FEIK_NotificationId UEIK_LobbySubsystem::EIK_Lobby_AddNotifyJoinLobbyAccepted(FEIK_Lobby_OnJoinLobbyAcceptedCallback Callback)
 {
@@ -1151,4 +1152,175 @@ FEIK_NotificationId UEIK_LobbySubsystem::EIK_Lobby_AddNotifySendLobbyNativeInvit
 	}
 	UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_AddNotifySendLobbyNativeInviteRequested: OnlineSubsystemEOS is not valid"));
 	return FEIK_NotificationId();
+}
+
+TEnumAsByte<EEIK_Result> UEIK_LobbySubsystem::EIK_Lobby_SetMemberData(FEIK_LobbyId LobbyId, FString Key, FString Value)
+{
+	if (IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get("EIK"))
+	{
+		if (FOnlineSubsystemEOS* EOSRef = static_cast<FOnlineSubsystemEOS*>(OnlineSub))
+		{
+			// Get the local user ID
+			EOS_ProductUserId LocalUserIdEOS = EOSRef->UserManager->GetLocalProductUserId();
+			if (!LocalUserIdEOS)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: Failed to get local product user ID"));
+				return EEIK_Result::EOS_InvalidUser;
+			}
+			FEIK_ProductUserId LocalUserId(LocalUserIdEOS);
+
+			// Step 1: Create lobby modification handle
+			FEIK_HLobbyModification ModificationHandle;
+			TEnumAsByte<EEIK_Result> ModResult = EIK_Lobby_UpdateLobbyModification(LocalUserId, LobbyId, ModificationHandle);
+
+			if (ModResult != EEIK_Result::EOS_Success)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: Failed to create lobby modification handle. Error: %d"), static_cast<int32>(ModResult.GetValue()));
+				return ModResult;
+			}
+
+			// Step 2: Create attribute data
+			FEIK_Lobby_AttributeData AttributeData;
+			AttributeData.Key = Key;
+			AttributeData.ValueAsString = Value;
+			AttributeData.ValueType = EEIK_EAttributeType::EIK_AT_STRING;
+
+			// Convert to EOS types
+			EOS_Lobby_AttributeData EOSAttributeData = {};
+			EOSAttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+			EOSAttributeData.Key = TCHAR_TO_UTF8(*Key);
+			EOSAttributeData.Value.AsUtf8 = TCHAR_TO_UTF8(*Value);
+			EOSAttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
+			AttributeData.Ref = EOSAttributeData;
+
+			// Step 3: Add member attribute to modification
+			TEnumAsByte<EEIK_Result> AddResult = EIK_LobbyModification_AddMemberAttribute(ModificationHandle, AttributeData, EEIK_ELobbyAttributeVisibility::EIK_LAV_Public);
+
+			if (AddResult != EEIK_Result::EOS_Success)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: Failed to add member attribute. Error: %d"), static_cast<int32>(AddResult.GetValue()));
+				EIK_LobbyModification_Release(ModificationHandle);
+				return AddResult;
+			}
+
+			// Step 4: Apply the modification (synchronous - this will block)
+			EOS_Lobby_UpdateLobbyOptions Options = {};
+			Options.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
+			Options.LobbyModificationHandle = *ModificationHandle.Ref;
+
+			// Use a simple blocking approach with a completion flag
+			struct FUpdateContext
+			{
+				bool bCompleted = false;
+				EOS_EResult Result = EOS_EResult::EOS_UnexpectedError;
+			};
+
+			FUpdateContext Context;
+
+			EOS_Lobby_UpdateLobby(EOSRef->SessionInterfacePtr->LobbyHandle, &Options, &Context,
+				[](const EOS_Lobby_UpdateLobbyCallbackInfo* Data)
+				{
+					FUpdateContext* UpdateContext = static_cast<FUpdateContext*>(Data->ClientData);
+					UpdateContext->Result = Data->ResultCode;
+					UpdateContext->bCompleted = true;
+				});
+
+			// Wait for completion (with timeout)
+			double StartTime = FPlatformTime::Seconds();
+			const double TimeoutSeconds = 10.0;
+
+			while (!Context.bCompleted && (FPlatformTime::Seconds() - StartTime) < TimeoutSeconds)
+			{
+				FPlatformProcess::Sleep(0.01f);
+			}
+
+			// Cleanup
+			EIK_LobbyModification_Release(ModificationHandle);
+
+			if (!Context.bCompleted)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: Update lobby timed out"));
+				return EEIK_Result::EOS_TimedOut;
+			}
+
+			if (Context.Result != EOS_EResult::EOS_Success)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: Update lobby failed. Error: %d"), static_cast<int32>(Context.Result));
+			}
+
+			return static_cast<EEIK_Result>(Context.Result);
+		}
+	}
+
+	UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_SetMemberData: OnlineSubsystemEOS is not valid"));
+	return EEIK_Result::EOS_NotFound;
+}
+
+TEnumAsByte<EEIK_Result> UEIK_LobbySubsystem::EIK_Lobby_GetMemberData(FEIK_LobbyId LobbyId,
+	FEIK_ProductUserId TargetUserId, FString Key, FString& OutValue)
+{
+	if (IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get("EIK"))
+	{
+		if (FOnlineSubsystemEOS* EOSRef = static_cast<FOnlineSubsystemEOS*>(OnlineSub))
+		{
+			// Get the local user ID
+			EOS_ProductUserId LocalUserIdEOS = EOSRef->UserManager->GetLocalProductUserId();
+			if (!LocalUserIdEOS)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_GetMemberData: Failed to get local product user ID"));
+				return EEIK_Result::EOS_InvalidUser;
+			}
+			FEIK_ProductUserId LocalUserId(LocalUserIdEOS);
+
+			// Step 1: Get lobby details handle
+			FEIK_HLobbyDetails LobbyDetailsHandle;
+			TEnumAsByte<EEIK_Result> HandleResult = EIK_Lobby_CopyLobbyDetailsHandle(LobbyId, LocalUserId, LobbyDetailsHandle);
+
+			if (HandleResult != EEIK_Result::EOS_Success)
+			{
+				UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_GetMemberData: Failed to get lobby details handle. Error: %d"), static_cast<int32>(HandleResult.GetValue()));
+				return HandleResult;
+			}
+
+			// Step 2: Get member attribute by key
+			FEIK_Lobby_Attribute MemberAttribute;
+			TEnumAsByte<EEIK_Result> AttrResult = EIK_LobbyDetails_CopyMemberAttributeByKey(LobbyDetailsHandle, TargetUserId, Key, MemberAttribute);
+
+			if (AttrResult != EEIK_Result::EOS_Success)
+			{
+				UE_LOG(LogEIK, Warning, TEXT("EIK_Lobby_GetMemberData: Failed to get member attribute '%s'. Error: %d"), *Key, static_cast<int32>(AttrResult.GetValue()));
+				EIK_LobbyDetails_Release(LobbyDetailsHandle);
+				return AttrResult;
+			}
+
+			// Step 3: Extract value based on type
+			switch (MemberAttribute.Data.ValueType)
+			{
+				case EEIK_EAttributeType::EIK_AT_STRING:
+					OutValue = MemberAttribute.Data.ValueAsString;
+					break;
+				case EEIK_EAttributeType::EIK_AT_INT64:
+					OutValue = FString::Printf(TEXT("%lld"), MemberAttribute.Data.ValueAsInt64);
+					break;
+				case EEIK_EAttributeType::EIK_AT_DOUBLE:
+					OutValue = FString::Printf(TEXT("%f"), MemberAttribute.Data.ValueAsDouble);
+					break;
+				case EEIK_EAttributeType::EIK_AT_BOOL:
+					OutValue = MemberAttribute.Data.bValueAsBool ? TEXT("true") : TEXT("false");
+					break;
+				default:
+					UE_LOG(LogEIK, Warning, TEXT("EIK_Lobby_GetMemberData: Unknown attribute type for key '%s'"), *Key);
+					OutValue = TEXT("");
+					break;
+			}
+
+			// Cleanup
+			EIK_LobbyDetails_Release(LobbyDetailsHandle);
+
+			return EEIK_Result::EOS_Success;
+		}
+	}
+
+	UE_LOG(LogEIK, Error, TEXT("EIK_Lobby_GetMemberData: OnlineSubsystemEOS is not valid"));
+	return EEIK_Result::EOS_NotFound;
 }

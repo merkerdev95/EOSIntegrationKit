@@ -33,10 +33,10 @@ public:
 public:
 	UPROPERTY()
 	bool bIsPassthrough = false;
-
+/*
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
 	UE_DEPRECATED(5.6, "bIsUsingP2PSockets is deprecated. All code that used it now operates as if it were true")
-#endif
+#endif */
 	UPROPERTY(Config)
 	bool bIsUsingP2PSockets = true;
 };
