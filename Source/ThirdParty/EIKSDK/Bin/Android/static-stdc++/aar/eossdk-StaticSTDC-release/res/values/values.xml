@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="eos_customTabToolbarColor">#272727</color>
+    <string name="eos_login_protocol_scheme">""</string>
+</resources>
